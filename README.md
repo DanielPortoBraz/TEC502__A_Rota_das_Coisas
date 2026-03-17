@@ -44,3 +44,8 @@ O diagrama abaixo representa uma visão inicial da arquitetura do sistema:
 <img width="640" height="380" alt="Diagrama em branco" src="https://github.com/user-attachments/assets/7d9af048-76f1-435e-810b-3f656ec4a65e" />
 
   > **Observação:** Este diagrama é um rascunho inicial que não segue qualquer padrão.
+
+
+
+## Aluno
+Daniel Porto Braz
