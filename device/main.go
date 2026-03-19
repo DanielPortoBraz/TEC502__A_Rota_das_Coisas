@@ -12,8 +12,8 @@ import (
 
 func main() {
 
-	// Por enquanto a conexão é feita em TCP
-    conn, err := net.Dial("tcp", "localhost:9000");
+	// Conexão por UDP
+    conn, err := net.Dial("udp", "localhost:9000");
 	if err != nil {
 		panic(err);
 	}
