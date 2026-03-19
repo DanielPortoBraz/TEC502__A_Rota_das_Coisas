@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-func handleConnection(conn net.Conn, ch chan SensorData) {
+func handleConnectionTCP(conn net.Conn) {
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
@@ -22,9 +22,7 @@ func handleConnection(conn net.Conn, ch chan SensorData) {
 		// Desserialização do JSON
 		json.Unmarshal(data, &sensor)
 
-		ch <- sensor; // Envia o sensor recebido no canal de sensores do Broker
-
-		fmt.Println("TCP: Dado Recebido")
+		fmt.Println("TCP: Dado Recebido\n\n")
 
 	}
 }

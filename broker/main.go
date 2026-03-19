@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"log"
 )
 
 type SensorData struct {
@@ -10,7 +11,8 @@ type SensorData struct {
 	Valor float64 `json:"valor"`
 }
 
-func StartServer(sensores chan SensorData) {
+// Inicia Servidor TCP
+func StartServerTCP() {
 	ln, err := net.Listen("tcp", "localhost:9000")
 	if err != nil {
 		panic(err)
@@ -25,19 +27,40 @@ func StartServer(sensores chan SensorData) {
 		}
 
 		fmt.Println("Novo dispositivo conectado:", conn.RemoteAddr())
-		go handleConnection(conn, sensores)
+
+		// Gerenciamento de Clientes TCP
+		go handleConnectionTCP(conn);
 	}
+}
+
+// Inicia Servidor UDP
+func StartServerUDP(sensores chan SensorData) {
+
+	address, err := net.ResolveUDPAddr("udp", "localhost:9000");
+	if err != nil {
+		log.Fatal(err);
+	}
+
+	conn, err := net.ListenUDP("udp", address);
+	if err != nil {
+		log.Fatal(err);
+	}
+	defer conn.Close();
+
+	// Gerenciamento de Clientes UDP
+	handleConnectionUDP(conn, sensores);
 }
 
 func main() {
 	sensores := make(chan SensorData, 5); 
 
-	// Iniciando Servidor - abre a porta, aceita e gerencia conexões
-	go StartServer(sensores);
+	// Iniciando Servidores TCP UDP - abre a porta, aceita e gerencia conexões
+	go StartServerTCP();
+	go StartServerUDP(sensores);
 
 	// Tratativa dos sensores - Recebe dados do canal de sensores
 	for sensor := range sensores {
-		fmt.Println("Broker: Dado Recebido\n", sensor);
+		fmt.Printf("Broker: Dado Recebido\nID: %s Valor: %.2f\n\n", sensor.ID, sensor.Valor);
 	}
 
 }
