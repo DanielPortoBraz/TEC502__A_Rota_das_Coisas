@@ -15,7 +15,7 @@ func handleConnectionUDP (conn *net.UDPConn, ch chan SensorData) {
 	for {
 		n, _, err := conn.ReadFromUDP(buffer) // Recebe dados UDP
 		if err != nil {
-			fmt.Printf("UDP: Error: %v\n\n", err)
+			fmt.Printf("Broker: UDP: Error: %v\n\n", err)
 			continue
 		}
 
@@ -25,6 +25,6 @@ func handleConnectionUDP (conn *net.UDPConn, ch chan SensorData) {
 		// Envia dados de leitura para o canal de Sensores
 		ch <- sensor;
 
-		fmt.Println("UDP: Dado recebido\n");
+		fmt.Print("Broker: UDP: Dado recebido\n\n");
 	}
 }

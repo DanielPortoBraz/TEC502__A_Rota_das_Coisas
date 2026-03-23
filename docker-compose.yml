@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  broker:
+    build: ./broker
+    container_name: broker
+    ports:
+      - "9000:9000"
+
+  device:
+    build: ./device
+    depends_on:
+      - broker

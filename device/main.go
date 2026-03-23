@@ -13,15 +13,16 @@ import (
 func main() {
 
 	// Conexão por UDP
-    conn, err := net.Dial("udp", "localhost:9000");
+    conn, err := net.Dial("udp", "broker:9000");
 	if err != nil {
 		panic(err);
 	}
 	
-	fmt.Println("Porta Aberta")
+	fmt.Println("Device: UDP: Porta Aberta")
 
+	sensor := newSensor();
 	for {
-		enviarDado(conn, lerDado());
+		enviarDado(sensor, conn, lerDado());
 		time.Sleep(1 * time.Second); // Envia uma leitura a cada segundo
 	}
 }

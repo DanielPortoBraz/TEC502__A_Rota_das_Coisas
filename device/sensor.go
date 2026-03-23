@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"math/rand"
+	"os"
 )
 
 type Sensor struct {
@@ -14,7 +15,7 @@ type Sensor struct {
 
 func newSensor() *Sensor{
 	return &Sensor {
-		ID : "id123",
+		ID : os.Getenv("HOSTNAME"), // Atribui id ao hostname do Conteiner Docker
 		Valor : 0.0,
 	}	
 }
@@ -33,17 +34,15 @@ func (s *Sensor) setValor(valor float64) {
 }
 
 func lerDado() float64 {
-	return 100 * rand.Float64(); // Valor entre 0 e 100 em 
+	return 100 * rand.Float64(); // Valor entre 0 e 100
 } 
 
-func enviarDado(conn net.Conn, value float64) error {
-    sensor := newSensor();
-
+func enviarDado(s *Sensor, conn net.Conn, value float64) error {
 	// Atualiza Valor de Leitura do Sensor
-	sensor.setValor(value); 
+	s.setValor(value); 
 
 	// Serialização do JSON
-    data, err := json.Marshal(sensor)
+    data, err := json.Marshal(s)
     if err != nil {
         return err
     }
@@ -51,6 +50,6 @@ func enviarDado(conn net.Conn, value float64) error {
 	// Envio de dado para a Rede
     _, err = conn.Write(data)
 
-	fmt.Println("Dado:", sensor);
+	fmt.Println("Device: Sensor", s);
     return err
 }

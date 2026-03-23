@@ -22,7 +22,7 @@ func handleConnectionTCP(conn net.Conn) {
 		// Desserialização do JSON
 		json.Unmarshal(data, &sensor)
 
-		fmt.Println("TCP: Dado Recebido\n\n")
+		fmt.Print("TCP: Dado Recebido\n\n\n")
 
 	}
 }

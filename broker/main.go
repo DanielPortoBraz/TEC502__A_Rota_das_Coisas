@@ -13,12 +13,12 @@ type SensorData struct {
 
 // Inicia Servidor TCP
 func StartServerTCP() {
-	ln, err := net.Listen("tcp", "localhost:9000")
+	ln, err := net.Listen("tcp", ":9000")
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Broker: Porta Aberta 9000")
+	fmt.Println("Broker: TCP: Porta Aberta 9000")
 
 	for {
 		conn, err := ln.Accept()
@@ -26,7 +26,7 @@ func StartServerTCP() {
 			continue
 		}
 
-		fmt.Println("Novo dispositivo conectado:", conn.RemoteAddr())
+		fmt.Println("Broker: TCP: Novo dispositivo conectado:", conn.RemoteAddr())
 
 		// Gerenciamento de Clientes TCP
 		go handleConnectionTCP(conn);
@@ -36,7 +36,7 @@ func StartServerTCP() {
 // Inicia Servidor UDP
 func StartServerUDP(sensores chan SensorData) {
 
-	address, err := net.ResolveUDPAddr("udp", "localhost:9000");
+	address, err := net.ResolveUDPAddr("udp", ":9000");
 	if err != nil {
 		log.Fatal(err);
 	}
@@ -52,7 +52,7 @@ func StartServerUDP(sensores chan SensorData) {
 }
 
 func main() {
-	sensores := make(chan SensorData, 5); 
+	sensores := make(chan SensorData, 100); 
 
 	// Iniciando Servidores TCP UDP - abre a porta, aceita e gerencia conexões
 	go StartServerTCP();
@@ -60,7 +60,7 @@ func main() {
 
 	// Tratativa dos sensores - Recebe dados do canal de sensores
 	for sensor := range sensores {
-		fmt.Printf("Broker: Dado Recebido\nID: %s Valor: %.2f\n\n", sensor.ID, sensor.Valor);
+		fmt.Printf("Broker: Sensor Recebido\nID: %s\nValor: %.2f\n\n", sensor.ID, sensor.Valor);
 	}
 
 }
