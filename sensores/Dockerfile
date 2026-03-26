@@ -5,8 +5,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN go mod init device || true
+RUN go mod init sensores || true
 RUN go mod tidy
-RUN go build -o device
+RUN go build -o sensores
 
-CMD ["./device"]
+CMD ["./sensores"]
