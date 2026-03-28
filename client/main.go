@@ -22,7 +22,7 @@ import (
 */
 
 /*
-Padrão de Tópico: tipo/tipoId/comando. ("Valor" não será utilizado dentro do tópico, mas como dado fornecido por sensores. O mesmo vale para "Estado")
+Padrão de Tópico: tipo/tipoId/comando. ("Valor" não será utilizado dentro do tópico, mas como dado fornecido por sensores. O mesmo vale para "Estado" para o caso de atuadores)
 Exemplo: sensor/sensor_1/- 
 Exemplo: atuador/atuador_1/off
 */
@@ -48,11 +48,6 @@ func timeStamp() string{
 		currentTime.Second()))
 }
 
-// 1. Conecta ao Broker via TCP
-// 2. Exibe terminal
-// 3. Recebe comando 
-// 4. Envia comando para o Broker
-
 func main() {
 	conn, err := net.Dial("tcp", ":9000")
 	if err != nil {
@@ -70,26 +65,34 @@ func main() {
 		if !scanner.Scan() { break }
 		opcao := scanner.Text()
 
-		fmt.Print("Digite o ID do sensor (ex: sensor/1/on): ")
+		fmt.Print("Digite o ID do dispositivo: ")
 		if !scanner.Scan() { break }
 		IdSensor := scanner.Text()
 
-		// Lógica de decisão
 		if opcao == "c" {
 			topico.Tipo = "atuador";
 			topico.Comando = IdSensor;
-			// Publicar costuma ser uma operação rápida, 
-			// mas se quiser concorrência total, mantenha o 'go'
 			go publicarTopico(conn, topico);
 			fmt.Println("comando enviado.");
 
 		} else if opcao == "s" {
-			topico.Tipo = "sensor";
-			topico.TipoId = IdSensor ;
-			
+			topico.Tipo = "sensor"
+			topico.TipoId = IdSensor
+
+			stop := make(chan bool)
+
+			go assinarTopico(conn, topico, stop)
+
+			fmt.Println("Assinando... (digite 'p' para parar)")
+
 			for {
-				assinarTopico(conn, topico)
-				time.Sleep(time.Second);
+				if !scanner.Scan() { break }
+				cmd := scanner.Text()
+
+				if cmd == "p" {
+					stop <- true
+					break
+				}
 			}
 		}
 	}

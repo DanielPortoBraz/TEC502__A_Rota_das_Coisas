@@ -6,25 +6,25 @@ import (
 	"net"
 )
 
-func handleConnectionUDP (conn *net.UDPConn, pub chan Topico) {
+func handleConnectionUDP (conn *net.UDPConn, broker *Broker) {
 
 	// Buffer para receber os dados
 	buffer := make([]byte, 1024);
-	var sensor Topico;
+	var topico Topico;
 
 	for {
 		n, _, err := conn.ReadFromUDP(buffer) // Recebe dados UDP
 		if err != nil {
-			fmt.Printf("Broker: UDP: Error: %v\n\n", err)
+			fmt.Printf("[%s] (Broker) (UDP): Error: %v\n\n", timeStamp(), err);
 			continue
 		}
 
 		// Desserializa JSON
-		json.Unmarshal(buffer[:n], &sensor);
+		json.Unmarshal(buffer[:n], &topico);
 
-		// Envia Tópico do Sensor para o canal de Topicos
-		pub <- sensor;
+		// Publica Tópico (Sensor) 
+		broker.publicar(topico);
 
-		fmt.Printf("[%s] (Broker) (UDP):\n%s/%s/%s\n", timeStamp(), sensor.Tipo, sensor.TipoId, sensor.Comando);
+		fmt.Printf("[%s] (Broker) (UDP):\n%s/%s/%s\n", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando);
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-func handleConnectionTCP(conn net.Conn, ch chan Topico) {
+func handleConnectionTCP(conn net.Conn, broker *Broker) {
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn);
@@ -22,23 +22,16 @@ func handleConnectionTCP(conn net.Conn, ch chan Topico) {
 		// Desserialização do JSON
 		json.Unmarshal(data, &topico)
 
+		// Verifica se é um tópico de publicação ou assinatura
 		switch topico.Acao {
 
 		case "pub":
+			// Publica tópico
 			fmt.Println("Publicação")
-			ch <- topico;
-
+			
 		case "sub":
-
-			assinado := (<- ch);
-
-			if topico.TipoId == assinado.TipoId {
-				fmt.Println("Assinatura")
-				data, _ = json.Marshal(assinado);
-
-				// Envia dados da assinatura
-				conn.Write(data);
-			}
+			// Assina tópico
+			broker.assinar(topico, conn);
 		}
 
 		fmt.Printf("[%s] (Broker) (TCP):\n%s/%s/%s\n", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando);

@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"net"
+	"sync"
 	"log"
+	"encoding/json"
 	"time"
 )
 
@@ -36,6 +38,59 @@ type Topico struct {
 	Estado bool `json:"estado"`
 };
 
+// Guarda os assinantes de cada tópico. Assume que não tem assinantes UDP
+type Broker struct {
+	assinantes map[string][]net.Conn; // Map de Assinantes (Guarda conns TCP para cada tópico)- [Topico]: [conn1, conn2, ...]
+	mu sync.RWMutex;
+};
+
+
+// FUNCOES - Pub/Sub
+
+
+
+// Publica tópico no Broker
+func (broker *Broker) publicar(topico Topico){
+	
+	// Apenas rota do tópico
+	chave := fmt.Sprintf("%s/%s", topico.Tipo, topico.TipoId)
+
+	// Recebe a lista de conns do Tópico a ser publicado
+	broker.mu.RLock();
+	conns := broker.assinantes[chave];
+	broker.mu.RUnlock();
+
+	// Serializa o topico 
+	data, err := json.Marshal(topico);
+	if err != nil {
+		return;
+	}
+
+	// Publica Tópico para todos os conns inscritos
+	for _, c := range conns {
+		go func(conn net.Conn) {
+			_, err := conn.Write(data);
+			if err != nil {
+				return;
+			}
+			conn.Write([]byte("\n"));
+		}(c)
+	}
+}
+
+// Assina tópico no Broker
+func (broker *Broker) assinar(topico Topico, conn net.Conn){
+	chave := fmt.Sprintf("%s/%s", topico.Tipo, topico.TipoId)
+
+	// Adiciona um assinante (conn) ao Tópico
+	broker.mu.Lock();
+	broker.assinantes[chave] = append(broker.assinantes[chave], conn);
+	broker.mu.Unlock();
+}
+
+
+// FUNCOES GERAIS
+
 // Retorna timeStamp
 func timeStamp() string{
 	currentTime := time.Now()
@@ -50,13 +105,13 @@ func timeStamp() string{
 }
 
 // Inicia Servidor TCP
-func StartServerTCP(topicos chan Topico) {
+func StartServerTCP(broker *Broker) {
 	ln, err := net.Listen("tcp", ":9000")
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Broker: TCP: Porta Aberta 9000")
+	fmt.Printf("[%s] (Broker) (TCP): Porta Aberta 9000\n", timeStamp());
 
 	for {
 		conn, err := ln.Accept()
@@ -67,12 +122,12 @@ func StartServerTCP(topicos chan Topico) {
 		fmt.Println("Broker: TCP: Novo dispositivo conectado:", conn.RemoteAddr())
 
 		// Gerenciamento de Clientes TCP
-		go handleConnectionTCP(conn, topicos);
+		go handleConnectionTCP(conn, broker);
 	}
 }
 
 // Inicia Servidor UDP
-func StartServerUDP(topicos chan Topico) {
+func StartServerUDP(broker *Broker) {
 
 	address, err := net.ResolveUDPAddr("udp", ":9000");
 	if err != nil {
@@ -83,23 +138,26 @@ func StartServerUDP(topicos chan Topico) {
 	if err != nil {
 		log.Fatal(err);
 	}
+
+	fmt.Printf("[%s] (Broker) (UDP): Porta Aberta 9000\n", timeStamp());
+
 	defer conn.Close();
 
 	// Gerenciamento de Clientes UDP
-	handleConnectionUDP(conn, topicos);
+	handleConnectionUDP(conn, broker);
 }
 
 func main() {
 
 	// Canal de Tópicos
-	topicos := make(chan Topico, 100); 
+	broker := Broker{assinantes: make(map[string][]net.Conn)};
+	
 
 	// Iniciando Servidores TCP UDP - abre a porta, aceita e gerencia conexões
-	go StartServerTCP(topicos);
-	go StartServerUDP(topicos);
-
+	go StartServerTCP(&broker);
+	go StartServerUDP(&broker);
 	
-	for {
-		
+	for {		
+		time.Sleep(time.Second);
 	}
 }
