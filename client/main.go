@@ -67,17 +67,34 @@ func main() {
 
 		fmt.Print("Digite o ID do dispositivo: ")
 		if !scanner.Scan() { break }
-		IdSensor := scanner.Text()
+		tipoId := scanner.Text()
 
+		// Publicar Tópico de Comando para Atuador
 		if opcao == "c" {
-			topico.Tipo = "atuador";
-			topico.Comando = IdSensor;
-			go publicarTopico(conn, topico);
-			fmt.Println("comando enviado.");
+			fmt.Print("Digite o Comando (on/off): ")
+			if !scanner.Scan() { break } 	
+			var comando string;
 
+			if scanner.Text() == "on" {
+				comando = "true";
+			}else {
+				comando = "false";
+			}
+
+			topico.Acao = "pub";
+			topico.Tipo = "atuador";
+			topico.TipoId = tipoId;
+			topico.Comando = comando;
+
+			go publicarTopico(conn, topico);
+			fmt.Println("Comando enviado.");
+
+
+		// Assinar Tópico de Sensor
 		} else if opcao == "s" {
+			topico.Acao = "sub"
 			topico.Tipo = "sensor"
-			topico.TipoId = IdSensor
+			topico.TipoId = tipoId
 
 			stop := make(chan bool)
 

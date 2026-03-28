@@ -40,14 +40,19 @@ func timeStamp() string{
 
 func main() {
 
-	conn, err := net.Dial("tcp", "broker:9000")
+	conn, err := net.Dial("tcp", ":9000")
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Atuador conectado ao broker")
+	fmt.Println("Atuador conectado ao broker");
 
-	atuador := newAtuador()
+	atuador := newAtuador();
 
-	receberComando(atuador, conn)
+	go assinarComando(atuador, conn);
+
+	for {
+		fmt.Println(atuador);
+		time.Sleep(time.Second);
+	}
 }

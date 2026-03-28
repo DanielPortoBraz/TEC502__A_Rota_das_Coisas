@@ -5,56 +5,60 @@ import (
 	"net"
 	"bufio"
 	"encoding/json"
-	"os"
+	"math/rand"
 )
 
-type Atuador struct {
-	ID     string
-	Estado bool
-}
 
-// Comando
- 
-type Comando struct {
-	Target string `json:"target"`
-	Estado bool   `json:"estado"`
-}
-
-func newAtuador() *Atuador {
-	return &Atuador{
-		ID:     os.Getenv("HOSTNAME"),
+func newAtuador() *Topico {
+	return &Topico{
+		Acao : "sub",
+		Tipo : "atuador",
+		TipoId : fmt.Sprintf("%d", rand.Intn(100)),
+		Comando : "-",
+		Valor : 0.0,
 		Estado: false,
 	}
 }
 
-func (a *Atuador) setEstado(estado bool) {
-	a.Estado = estado
-}
 
-func receberComando(a *Atuador, conn net.Conn) {
+// Assina o Tópico e atualiza o estado do atuador
+func assinarComando(atuador *Topico, conn net.Conn) {
+	
+	// 1. Publica tópico do atuador
+	// 2. Espera continuamente até que alguém assine
+	// 3. Atualiza o estado do atuador conforme aquele do tópico assinado
+	
+	// Serializa JSON - Tópico a ser publicado
+	atuador_json, err := json.Marshal(atuador);
+	if err != nil {
+		return;
+	}
+
+	// Publica Tópico do atuador
+	conn.Write(atuador_json);
+	conn.Write([]byte("\n"));
+
+	
 	reader := bufio.NewReader(conn)
 
+	// Assina tópico continuamente
+	var topico Topico;
 	for {
-		msgBytes, err := reader.ReadBytes('}')
+		fmt.Println("Assinando")
+		data, err := reader.ReadBytes('\n');
 		if err != nil {
-			fmt.Println("Erro leitura:", err)
-			return
+			return;
 		}
-
-		var cmd Comando
-		err = json.Unmarshal(msgBytes, &cmd)
-		if err != nil {
-			fmt.Println("Erro JSON:", err)
-			continue
-		}
-
-		if cmd.Target != a.ID {
-			continue
-		}
+		
+		// Desserializar JSON
+		json.Unmarshal(data, &topico);
+		fmt.Println("(Atuador): Topico assinado -", topico);
 
 		// Atualiza estado
-		a.setEstado(cmd.Estado)
-
-		fmt.Printf("Atuador [%s] atualizado → Estado: %t\n", a.ID, a.Estado)
+		if topico.Comando == "true" {
+			atuador.Estado = true;
+		} else {
+			atuador.Estado = false;
+		}
 	}
 }

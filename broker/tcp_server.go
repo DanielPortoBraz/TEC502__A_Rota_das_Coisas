@@ -27,7 +27,7 @@ func handleConnectionTCP(conn net.Conn, broker *Broker) {
 
 		case "pub":
 			// Publica tópico
-			fmt.Println("Publicação")
+			broker.publicar(topico);
 			
 		case "sub":
 			// Assina tópico
