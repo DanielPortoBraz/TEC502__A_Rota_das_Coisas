@@ -22,7 +22,7 @@ func newAtuador() *Topico {
 }
 
 // Heartbeat para indicar que a conexão está viva
-func heartbeat(conn net.Conn) {
+func heartbeat(conn net.Conn, lastPong *time.Time) {
 	for {
 		ping_Top := Topico{Acao : "ping"};
 		data, _ := json.Marshal(ping_Top);
@@ -33,11 +33,17 @@ func heartbeat(conn net.Conn) {
 		}
 
 		time.Sleep(5 * time.Second)
+
+		// Verifica se a conexão com Broker caiu nos últimos 10 segundos
+		if time.Since(*lastPong) >= 10 * time.Second{
+			fmt.Printf("\n\n[%s] (Atuador): Broker desconectou!\n\n", timeStamp());
+			return
+		}
 	}
 }
 
 // Assina o Tópico e atualiza o estado do atuador
-func assinarComando(atuador *Topico, conn net.Conn) {
+func assinarComando(atuador *Topico, conn net.Conn, lastPong *time.Time) {
 	
 	// 1. Publica tópico do atuador
 	// 2. Espera continuamente até que alguém assine
@@ -58,6 +64,7 @@ func assinarComando(atuador *Topico, conn net.Conn) {
 
 	// Assina próprio tópico continuamente
 	var topico Topico;
+
 	for {
 		fmt.Println("Assinando")
 		data, err := reader.ReadBytes('\n');
@@ -70,7 +77,9 @@ func assinarComando(atuador *Topico, conn net.Conn) {
 		
 		// Resposta do Broker para Heartbeat
 		if topico.Acao == "pong" {
-			fmt.Printf("[%s] (Atuador): %v", timeStamp(), topico);
+			*lastPong = time.Now();
+			fmt.Printf("[%s] (Atuador) Acao: %s\n", timeStamp(), topico.Acao);
+
 			
 		} else{ // Atualiza estado
 			if topico.Comando == "true" {
@@ -78,7 +87,7 @@ func assinarComando(atuador *Topico, conn net.Conn) {
 			} else {
 				atuador.Estado = false;
 			}
-			fmt.Println("(Atuador): Topico assinado -", topico);
+			fmt.Printf("[%s] (Atuador): Topico assinado - %s/%s\nComando: %s", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando);
 		}
 	}
 }

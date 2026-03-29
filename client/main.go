@@ -56,7 +56,15 @@ func main() {
 	defer conn.Close();
 
 	topico := newUsuario();
+
+	pongChan := make(chan struct{}, 1); // Canal que recebe "pong" do Broker
+	topicoChan := make(chan Topico, 100); // Canal que recebe tópicos assinados
+
 	go heartbeat(conn);
+	
+	go dispatcher(conn, pongChan, topicoChan)
+	go monitorConexao(pongChan);
+
 
 	scanner := bufio.NewScanner(os.Stdin);
 
@@ -99,7 +107,7 @@ func main() {
 
 			stop := make(chan bool)
 
-			go assinarTopico(conn, topico, stop);
+			go assinarTopico(conn, topico, topicoChan, stop);
 
 			fmt.Println("Assinando... (digite 'p' para parar)")
 

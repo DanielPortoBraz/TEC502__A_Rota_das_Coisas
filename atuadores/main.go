@@ -49,9 +49,11 @@ func main() {
 	fmt.Println("Atuador conectado ao broker");
 
 	atuador := newAtuador();
-	go heartbeat(conn);
+	lastPong := time.Now();
 
-	go assinarComando(atuador, conn);
+	go heartbeat(conn, &lastPong);
+
+	go assinarComando(atuador, conn, &lastPong);
 
 	for {
 		fmt.Printf("[%s] (Atuador): ID- %s | Estado: %t\n", timeStamp(), atuador.TipoId, atuador.Estado);

@@ -41,6 +41,7 @@ type Topico struct {
 // Guarda os assinantes de cada tópico. Assume que não tem assinantes UDP
 type Broker struct {
 	assinantes map[string][]net.Conn; // Map de Assinantes (Guarda conns TCP para cada tópico)- [Topico]: [conn1, conn2, ...]
+    ultimaAtividade map[string]time.Time // [Topico]: Timestamp - Utilizado para monitorar conexões UDP (Sensores)
 	mu sync.RWMutex;
 };
 
@@ -85,6 +86,7 @@ func (broker *Broker) publicar(topico Topico){
 	// Recebe a lista de conns do Tópico a ser publicado
 	broker.mu.RLock();
 	conns := broker.assinantes[chave];
+	broker.ultimaAtividade[chave] = time.Now(); // Útil para UDP (sensores) somente
 	broker.mu.RUnlock();
 
 	// Serializa o topico 
@@ -113,6 +115,28 @@ func (broker *Broker) assinar(topico Topico, conn net.Conn){
 	broker.mu.Lock();
 	broker.assinantes[chave] = append(broker.assinantes[chave], conn);
 	broker.mu.Unlock();
+}
+
+// Monitora tópicos visando eliminar aqueles via UDP que não estão atualizando há mais de 10 segundos
+func (broker *Broker) monitorarTopicos() {
+    for {
+        time.Sleep(5 * time.Second)
+        broker.mu.Lock()
+
+        for topico, lastPub := range broker.ultimaAtividade {
+
+			// Verifica para excluir tópico: se o tópico é de sensor, não atualiza há +10s 
+            if topico[:6] == "sensor" && time.Since(lastPub) > 10 * time.Second{
+                fmt.Printf("[%s] (Broker) ALERTA: Tópico Removido por inatividade (+10s inativo)- %s\n", timeStamp(), topico);
+                
+                // Exclui tópico 
+                delete(broker.assinantes, topico) 
+				delete(broker.ultimaAtividade, topico); 
+
+            }
+        }
+        broker.mu.Unlock()
+    }
 }
 
 // FUNCOES GERAIS
@@ -145,7 +169,7 @@ func StartServerTCP(broker *Broker) {
 			continue
 		}
 
-		fmt.Printf("[%s] (Broker) (TCP): Novo dispositivo conectado: %v", timeStamp(), conn.RemoteAddr())
+		fmt.Printf("[%s] (Broker) (TCP): Novo dispositivo conectado: %v\n", timeStamp(), conn.RemoteAddr())
 
 		// Gerenciamento de Clientes TCP
 		go handleConnectionTCP(conn, broker);
@@ -176,8 +200,7 @@ func StartServerUDP(broker *Broker) {
 func main() {
 
 	// Canal de Tópicos
-	broker := Broker{assinantes: make(map[string][]net.Conn)};
-	
+	broker := Broker{assinantes: make(map[string][]net.Conn), ultimaAtividade: make(map[string]time.Time)};
 
 	// Iniciando Servidores TCP UDP - abre a porta, aceita e gerencia conexões
 	go StartServerTCP(&broker);

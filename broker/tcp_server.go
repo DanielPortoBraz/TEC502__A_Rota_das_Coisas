@@ -64,6 +64,7 @@ func handleConnectionTCP(conn net.Conn, broker *Broker) {
 			conn.Write([]byte("\n"));
 		}
 
-		fmt.Printf("[%s] (Broker) (TCP):\n%s/%s/%s\n", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando);
+		fmt.Printf("[%s] (Broker) (TCP): Acao - %s\nID: %v\nTópico: %s/%s/%s\n", timeStamp(), topico.Acao, conn.RemoteAddr(),
+			topico.Tipo, topico.TipoId, topico.Comando);
 	}
 }

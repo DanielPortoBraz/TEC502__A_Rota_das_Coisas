@@ -23,40 +23,86 @@ func newUsuario() *Topico {
 // Heartbeat para indicar que a conexão está viva
 func heartbeat(conn net.Conn) {
 	for {
-		ping_Top := Topico{Acao : "ping"}
-		data, _ := json.Marshal(ping_Top)
+		ping_Top := Topico{Acao : "ping"};
+		data, _ := json.Marshal(ping_Top);
 		
-		_, err := conn.Write(data)
+		_, err := conn.Write(data);
 		if err != nil {
 			return // conexão morreu
 		}
 
-		conn.Write([]byte("\n"))
-		time.Sleep(5 * time.Second)
+		conn.Write([]byte("\n"));
+		time.Sleep(5 * time.Second);
 	}
 }
 
+// Monitora mensagens "pong" para indicar conexão ativa do Broker
+func monitorConexao(pongChan chan struct{}) {
+	timeout := 10 * time.Second; // A cada 10 segundos
+	timer := time.NewTimer(timeout)
+
+	for {
+		select {
+		case <-pongChan:
+			if !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(timeout) // Reinicia o cronômetro sempre que o pong chega
+
+		case <-timer.C:
+			fmt.Printf("[%s] (Usuario) Broker desconectou por timeout!\n", timeStamp())
+			return
+		}
+	}
+}
+
+// Recebe o pacote enviado pelo Broker e identifica se é um heartbeat ("pong") ou tópico a ser assinado
+func dispatcher(conn net.Conn, pongChan chan struct{}, topicoChan chan Topico) {
+	reader := bufio.NewReader(conn)
+
+	for {
+		data, err := reader.ReadBytes('\n')
+		if err != nil {
+			fmt.Printf("[%s](Usuario) Broker Desconectou\n", timeStamp());
+			close(pongChan)
+			close(topicoChan)
+			return
+		}
+
+		var topico Topico
+		if err := json.Unmarshal(data, &topico); err != nil {
+			continue
+		}
+
+		// Roteamento
+		if topico.Acao == "pong" {
+			pongChan <- struct{}{};
+		} else {
+			topicoChan <- topico;
+		}
+	}
+}
+
+
+
 func publicarTopico(conn net.Conn, usuario *Topico) {
 
-	usuario.Acao = "pub"
+	usuario.Acao = "pub";
 
-	data, err := json.Marshal(usuario)
+	data, err := json.Marshal(usuario);
 	if err != nil {
-		fmt.Println("(Usuario) Erro ao enviar comando")
+		fmt.Println("(Usuario) Erro ao enviar comando");
 	}
 
 	conn.Write(data)
 	conn.Write([]byte("\n"))
 }
 
-func assinarTopico(conn net.Conn, usuario *Topico, stop chan bool){
-
-	reader := bufio.NewReader(conn)
-	var topico Topico
+func assinarTopico(conn net.Conn, usuario *Topico, topicoChan chan Topico, stop chan bool) {
 
 	usuario.Acao = "sub"
 
-	// Envia topico para se inscrever em outro
+	// Envia topico para assinar
 	data, err := json.Marshal(usuario)
 	if err != nil{
 		fmt.Println("(Usuario) Erro ao enviar comando")
@@ -71,35 +117,18 @@ func assinarTopico(conn net.Conn, usuario *Topico, stop chan bool){
 			fmt.Println("(Usuario) Encerrando assinatura...")
 			return
 
-		default:
-			// Define timeout para não travar
-			conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		case topico := <-topicoChan:
+			// Esvazia FIFO evitando obter um dado muito atrasado
+			for len(topicoChan) > 0 {
+                topico = <-topicoChan
+            }
 
-			data, err := reader.ReadBytes('\n')
-			if err != nil {
-				// timeout esperado → continua loop
-				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-					continue
-				}
+			fmt.Printf("[%s](Usuario): Topico Recebido - %s/%s/%s/%t\nValor: %.2f\n",
+				timeStamp(), topico.Tipo, topico.TipoId,
+				topico.Comando, topico.Estado, topico.Valor)
 
-				fmt.Printf("[%s] (Usuario): Erro\n", timeStamp())
-				return
-			}
-
-			// Desserialização do JSON
-			if err := json.Unmarshal(data, &topico); err != nil {
-				continue
-			}
-
-			// Resposta do Broker para Heartbeat
-			if topico.Acao == "pong" {
-				fmt.Printf("[%s] (Usuario): %v\n", timeStamp(), topico)
-
-			} else { // Tópico assinado
-				fmt.Printf("[%s](Usuario): Topico Recebido - %s/%s/%s/%t\nValor: %.2f\n",
-					timeStamp(), topico.Tipo, topico.TipoId,
-					topico.Comando, topico.Estado, topico.Valor)
-			}
+			// Recebe a leitura do sensor a cada 1 segundo (Evita sobrecarga no terminal)
+			time.Sleep(time.Second);
 		}
 	}
 }
