@@ -5,6 +5,7 @@ import (
 	"net"
 	"bufio"
 	"encoding/json"
+	"time"
 	"math/rand"
 )
 
@@ -20,6 +21,20 @@ func newAtuador() *Topico {
 	}
 }
 
+// Heartbeat para indicar que a conexão está viva
+func heartbeat(conn net.Conn) {
+	for {
+		ping_Top := Topico{Acao : "ping"};
+		data, _ := json.Marshal(ping_Top);
+
+		_, err := conn.Write(data) 
+		if err != nil {
+			return // conexão morreu
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+}
 
 // Assina o Tópico e atualiza o estado do atuador
 func assinarComando(atuador *Topico, conn net.Conn) {
@@ -41,7 +56,7 @@ func assinarComando(atuador *Topico, conn net.Conn) {
 	
 	reader := bufio.NewReader(conn)
 
-	// Assina tópico continuamente
+	// Assina próprio tópico continuamente
 	var topico Topico;
 	for {
 		fmt.Println("Assinando")
@@ -52,13 +67,18 @@ func assinarComando(atuador *Topico, conn net.Conn) {
 		
 		// Desserializar JSON
 		json.Unmarshal(data, &topico);
-		fmt.Println("(Atuador): Topico assinado -", topico);
-
-		// Atualiza estado
-		if topico.Comando == "true" {
-			atuador.Estado = true;
-		} else {
-			atuador.Estado = false;
+		
+		// Resposta do Broker para Heartbeat
+		if topico.Acao == "pong" {
+			fmt.Printf("[%s] (Atuador): %v", timeStamp(), topico);
+			
+		} else{ // Atualiza estado
+			if topico.Comando == "true" {
+				atuador.Estado = true;
+			} else {
+				atuador.Estado = false;
+			}
+			fmt.Println("(Atuador): Topico assinado -", topico);
 		}
 	}
 }

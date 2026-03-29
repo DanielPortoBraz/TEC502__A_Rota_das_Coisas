@@ -23,7 +23,7 @@ import (
 
 /*
 Padrão de Tópico: tipo/tipoId/comando. ("Valor" não será utilizado dentro do tópico, mas como dado fornecido por sensores. O mesmo vale para "Estado" para o caso de atuadores)
-Exemplo: sensor/sensor_1/- 
+Exemplo: sensor/sensor_1/-
 Exemplo: atuador/atuador_1/off
 */
 type Topico struct {
@@ -56,6 +56,8 @@ func main() {
 	defer conn.Close();
 
 	topico := newUsuario();
+	go heartbeat(conn);
+
 	scanner := bufio.NewScanner(os.Stdin);
 
 	fmt.Println("=== Terminal Pub/Sub Iniciado ===")
@@ -89,7 +91,6 @@ func main() {
 			go publicarTopico(conn, topico);
 			fmt.Println("Comando enviado.");
 
-
 		// Assinar Tópico de Sensor
 		} else if opcao == "s" {
 			topico.Acao = "sub"
@@ -98,7 +99,7 @@ func main() {
 
 			stop := make(chan bool)
 
-			go assinarTopico(conn, topico, stop)
+			go assinarTopico(conn, topico, stop);
 
 			fmt.Println("Assinando... (digite 'p' para parar)")
 
@@ -108,6 +109,8 @@ func main() {
 
 				if cmd == "p" {
 					stop <- true
+					topico.Acao = "unsub";
+					desassinarTopico(conn, topico)
 					break
 				}
 			}

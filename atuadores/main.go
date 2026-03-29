@@ -44,15 +44,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer conn.Close();
 
 	fmt.Println("Atuador conectado ao broker");
 
 	atuador := newAtuador();
+	go heartbeat(conn);
 
 	go assinarComando(atuador, conn);
 
 	for {
-		fmt.Println(atuador);
+		fmt.Printf("[%s] (Atuador): ID- %s | Estado: %t\n", timeStamp(), atuador.TipoId, atuador.Estado);
 		time.Sleep(time.Second);
 	}
 }

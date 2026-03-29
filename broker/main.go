@@ -44,10 +44,37 @@ type Broker struct {
 	mu sync.RWMutex;
 };
 
+// Remove conexões TCP que falharam ou foram interrompidas
+func (broker *Broker) removerConn(conn net.Conn) {
+
+    // Percorre todos os tópicos 
+    for topico, lista := range broker.assinantes {
+        
+        indice := -1;
+        // Busca a conexão dentro do slice deste tópico
+        for i, c := range lista {
+            if c == conn {
+                indice = i
+                break
+            }
+        }
+
+        // Se encontrou a conexão neste tópico, remove-a
+        if indice != -1 {
+            // Reajusta assinantes "pulando" a conexão encontrada na lista associada ao tópico
+            broker.assinantes[topico] = append(lista[:indice], lista[indice+1:]...);
+            
+            // Se o tópico ficou sem ninguém, limpa a chave do mapa
+            if len(broker.assinantes[topico]) == 0 {
+                delete(broker.assinantes, topico);
+            }
+        }
+    }
+}
+
+
 
 // FUNCOES - Pub/Sub
-
-
 
 // Publica tópico no Broker
 func (broker *Broker) publicar(topico Topico){
@@ -88,7 +115,6 @@ func (broker *Broker) assinar(topico Topico, conn net.Conn){
 	broker.mu.Unlock();
 }
 
-
 // FUNCOES GERAIS
 
 // Retorna timeStamp
@@ -119,7 +145,7 @@ func StartServerTCP(broker *Broker) {
 			continue
 		}
 
-		fmt.Println("Broker: TCP: Novo dispositivo conectado:", conn.RemoteAddr())
+		fmt.Printf("[%s] (Broker) (TCP): Novo dispositivo conectado: %v", timeStamp(), conn.RemoteAddr())
 
 		// Gerenciamento de Clientes TCP
 		go handleConnectionTCP(conn, broker);
