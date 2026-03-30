@@ -128,7 +128,7 @@ func main() {
 			for {
 				topico.Acao = "pub";
 				topico.Tipo = "atuador";
-				topico.TipoId = "123";
+				topico.TipoId = tipoId;
 
 				fmt.Println("Publicando... (digite 'p' para parar)");
 
