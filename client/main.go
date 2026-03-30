@@ -48,6 +48,7 @@ func timeStamp() string{
 		currentTime.Second()))
 }
 
+
 func main() {
 	conn, err := net.Dial("tcp", ":9000")
 	if err != nil {
@@ -71,7 +72,7 @@ func main() {
 	fmt.Println("=== Terminal Pub/Sub Iniciado ===")
 
 	for {
-		fmt.Print("\nPublicar comando ou Assinar sensor [c / s]: ")
+		fmt.Print("\n----- Painel de Controle -----\n[c] Publicar comando\n[s] Assinar sensor\n[t] Teste de Concorrência p/ Atuadores\nDigite o comando: ")
 		if !scanner.Scan() { break }
 		opcao := scanner.Text()
 
@@ -122,6 +123,57 @@ func main() {
 					break
 				}
 			}
+		} else if opcao == "t" {
+
+			for {
+				topico.Acao = "pub";
+				topico.Tipo = "atuador";
+				topico.TipoId = "123";
+
+				fmt.Println("Publicando... (digite 'p' para parar)");
+
+				stop := make(chan struct{});
+				
+				// Publica a cada segundo
+				go func() {
+					toggleCmd := true; // Variável para teste de concorrência - Alterna comando de estado para atuador
+
+					for {
+						select {
+						case <-stop:
+							fmt.Println("Parando publicação")
+							return
+
+						default:
+							if toggleCmd {
+								topico.Comando = "true"
+							} else {
+								topico.Comando = "false"
+							}
+
+							toggleCmd = !toggleCmd
+
+							publicarTopico(conn, topico)
+							time.Sleep(time.Second)
+						}
+					}
+				}()
+
+				for {
+					if !scanner.Scan() { break }
+					cmd := scanner.Text()
+
+					if cmd == "p" {
+						close(stop);
+						break
+					}
+				}
+
+				break;
+			}
+
 		}
+
+
 	}
 }
