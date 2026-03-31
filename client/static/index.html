@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Painel de Controle</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    text-align: center;
+}
+
+h1 {
+    margin-top: 20px;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 40px;
+}
+
+.card {
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 20px;
+    width: 400px;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+}
+
+input {
+    padding: 8px;
+    margin-right: 10px;
+}
+
+button {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+canvas {
+    margin-top: 20px;
+    width: 100% !important;
+    height: 250px !important;
+}
+
+/* Switch estilo ON/OFF */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+    margin-top: 20px;
+}
+
+.switch input {
+    display: none;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    background-color: #ccc;
+    border-radius: 34px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+input:checked + .slider {
+    background-color: #4CAF50;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+</style>
+</head>
+
+<body>
+
+<h1>Painel de Controle<br>[Usuário]</h1>
+
+<div class="container">
+
+    <!-- SENSOR -->
+    <div class="card">
+        <h2>Sensor</h2>
+
+        <input id="sensorId" placeholder="ID">
+        <button onclick="assinar()">Assinar</button>
+
+        <p><b>Gráfico</b></p>
+
+        <canvas id="grafico"></canvas>
+    </div>
+
+    <!-- ATUADOR -->
+    <div class="card">
+        <h2>Atuador</h2>
+
+        <input id="atuadorId" placeholder="ID">
+
+        <div>
+            <span>OFF</span>
+
+            <label class="switch">
+                <input type="checkbox" id="toggle">
+                <span class="slider"></span>
+            </label>
+
+            <span>ON</span>
+        </div>
+
+        <br>
+
+        <button onclick="publicar()">Publicar</button>
+    </div>
+
+</div>
+
+<script>
+const ctx = document.getElementById('grafico');
+
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Valor do Sensor',
+            data: [],
+            // Corrigido para string de cor válida
+            borderColor: 'rgb(255, 0, 0)', 
+            backgroundColor: 'rgba(255, 0, 0, 0.1)', // Um leve preenchimento abaixo da linha
+            borderWidth: 2,
+            tension: 0.4, // Deixa a linha curvada e mais "orgânica"
+            pointRadius: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        // Reativamos a animação para ser suave
+        animation: {
+            duration: 800,       // Tempo da transição em milissegundos
+            easing: 'easeInOutQuad' // Tipo de movimento (acelera e desacelera suavemente)
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                suggestedMax: 100
+            }
+        },
+        // Melhora a performance em atualizações constantes
+        transitions: {
+            active: {
+                animation: {
+                    duration: 400
+                }
+            }
+        }
+    }
+});
+
+
+let eventSource = null;
+
+// Assinar sensor
+function assinar() {
+    const id = document.getElementById("sensorId").value;
+
+    fetch(`/sub?id=${id}`);
+
+    if (eventSource) eventSource.close();
+
+    eventSource = new EventSource("/stream");
+
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+
+        const now = new Date().toLocaleTimeString();
+
+        chart.data.labels.push(now);
+        chart.data.datasets[0].data.push(data.valor);
+
+        if (chart.data.labels.length > 30) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+
+        chart.update();
+    };
+}
+
+// Publicar atuador
+function publicar() {
+    const id = document.getElementById("atuadorId").value;
+    const estado = document.getElementById("toggle").checked;
+
+    fetch("/pub", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            tipoId: id,
+            comando: estado ? "true" : "false"
+        })
+    });
+}
+</script>
+
+</body>
+</html>

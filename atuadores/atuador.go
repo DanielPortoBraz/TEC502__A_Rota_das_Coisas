@@ -87,7 +87,7 @@ func assinarComando(atuador *Topico, conn net.Conn, lastPong *time.Time) {
 			} else {
 				atuador.Estado = false;
 			}
-			fmt.Printf("[%s] (Atuador): Topico assinado - %s/%s\nComando: %s", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando);
+			fmt.Printf("[%s] (Atuador): Topico assinado - %s/%s\nComando: %s\n", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando);
 		}
 	}
 }
