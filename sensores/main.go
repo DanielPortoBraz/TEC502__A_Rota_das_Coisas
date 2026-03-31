@@ -46,7 +46,7 @@ func timeStamp() string{
 func main() {
 
 	// Conexão por UDP
-    conn, err := net.Dial("udp", "localhost:9000");
+    conn, err := net.Dial("udp", "broker:9000");
 	if err != nil {
 		panic(err);
 	}

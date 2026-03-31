@@ -156,7 +156,7 @@ func timeStamp() string{
 
 // Inicia Servidor TCP
 func StartServerTCP(broker *Broker) {
-	ln, err := net.Listen("tcp", ":9000")
+	ln, err := net.Listen("tcp", "broker:9000")
 	if err != nil {
 		panic(err)
 	}
@@ -179,7 +179,7 @@ func StartServerTCP(broker *Broker) {
 // Inicia Servidor UDP
 func StartServerUDP(broker *Broker) {
 
-	address, err := net.ResolveUDPAddr("udp", ":9000");
+	address, err := net.ResolveUDPAddr("udp", "broker:9000");
 	if err != nil {
 		log.Fatal(err);
 	}

@@ -50,7 +50,7 @@ func timeStamp() string{
 
 
 func main() {
-	conn, err := net.Dial("tcp", ":9000")
+	conn, err := net.Dial("tcp", "broker:9000")
 	if err != nil {
 		panic(err)
 	}
