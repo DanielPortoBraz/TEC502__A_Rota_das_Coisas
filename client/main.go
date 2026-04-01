@@ -8,6 +8,8 @@ import (
 	"os"
 )
 
+const PORTA = "172.16.201.5"
+
 // ============= Usuários ==============
 
 /*
@@ -50,7 +52,7 @@ func timeStamp() string{
 
 
 func main() {
-	conn, err := net.Dial("tcp", "broker:9000")
+	conn, err := net.Dial("tcp",  fmt.Sprintf("%s:9000", PORTA));
 	if err != nil {
 		panic(err)
 	}
