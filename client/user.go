@@ -102,33 +102,46 @@ func assinarTopico(conn net.Conn, usuario *Topico, topicoChan chan Topico, stop 
 
 	usuario.Acao = "sub"
 
-	// Envia topico para assinar
 	data, err := json.Marshal(usuario)
-	if err != nil{
+	if err != nil {
 		fmt.Println("(Usuario) Erro ao enviar comando")
 		return
 	}
+
 	conn.Write(data)
 	conn.Write([]byte("\n"))
 
+	// Guarda último valor por tópico
+	ultimos := make(map[string]Topico)
+
+	// Garante tratamento concorrente de leitura exibida no terminal a cada 1 s
+	ticker := time.NewTicker(time.Second);
+	defer ticker.Stop();
+
 	for {
 		select {
+
 		case <-stop:
-			fmt.Println("(Usuario) Encerrando assinatura...")
+			fmt.Println("(Usuario) Encerrando assinatura...");
 			return
 
+		// Recebe dados continuamente (não bloqueia fluxo)
 		case topico := <-topicoChan:
-			// Esvazia FIFO evitando obter um dado muito atrasado
-			for len(topicoChan) > 0 {
-                topico = <-topicoChan
-            }
+			chave := fmt.Sprintf("%s/%s", topico.Tipo, topico.TipoId);
+			ultimos[chave] = topico;
 
-			fmt.Printf("[%s](Usuario): Topico Recebido - %s/%s/%s/%t\nValor: %.2f\n",
-				timeStamp(), topico.Tipo, topico.TipoId,
-				topico.Comando, topico.Estado, topico.Valor)
+		// Atualiza tela a cada 1 segundo
+		case <-ticker.C:
 
-			// Recebe a leitura do sensor a cada 1 segundo (Evita sobrecarga no terminal)
-			time.Sleep(time.Second);
+			if len(ultimos) == 0 {
+				continue;
+			}
+
+			for _, t := range ultimos {
+				fmt.Printf("[%s](Usuario): Topico Recebido - %s/%s/%s/%t\nValor: %.2f\n",
+				timeStamp(), t.Tipo, t.TipoId,
+				t.Comando, t.Estado, t.Valor);
+			}
 		}
 	}
 }
