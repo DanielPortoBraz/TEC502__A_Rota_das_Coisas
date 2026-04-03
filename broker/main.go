@@ -7,6 +7,7 @@ import (
 	"log"
 	"encoding/json"
 	"time"
+	"strings"
 )
 
 // ============== Broker ===========
@@ -84,10 +85,15 @@ func (broker *Broker) publicar(topico Topico){
 	chave := fmt.Sprintf("%s/%s", topico.Tipo, topico.TipoId)
 
 	// Recebe a lista de conns do Tópico a ser publicado
-	broker.mu.RLock();
+	broker.mu.Lock();
+
+	if _, ok := broker.assinantes[chave]; !ok {
+		broker.assinantes[chave] = []net.Conn{} // Cria uma lista de conns
+	}
+	
 	conns := broker.assinantes[chave];
 	broker.ultimaAtividade[chave] = time.Now(); // Útil para UDP (sensores) somente
-	broker.mu.RUnlock();
+	broker.mu.Unlock();
 
 	// Serializa o topico 
 	data, err := json.Marshal(topico);
@@ -113,7 +119,20 @@ func (broker *Broker) assinar(topico Topico, conn net.Conn){
 
 	// Adiciona um assinante (conn) ao Tópico
 	broker.mu.Lock();
-	broker.assinantes[chave] = append(broker.assinantes[chave], conn);
+
+	// Verifica se o assinante irá assinar todos os tópicos de um determinado tipo (uso do WildCard "#")
+	if topico.TipoId != "#"{
+		broker.assinantes[chave] = append(broker.assinantes[chave], conn);
+	} else {
+
+		for key := range broker.assinantes {
+			
+			// Assina todos os tópicos daquele tipo
+			if strings.HasPrefix(key, topico.Tipo+"/") {
+				broker.assinantes[key] = append(broker.assinantes[key], conn)
+			}
+		}
+	}
 	broker.mu.Unlock();
 }
 
@@ -126,7 +145,7 @@ func (broker *Broker) monitorarTopicos() {
         for topico, lastPub := range broker.ultimaAtividade {
 
 			// Verifica para excluir tópico: se o tópico é de sensor, não atualiza há +10s 
-            if topico[:6] == "sensor" && time.Since(lastPub) > 10 * time.Second{
+            if strings.HasPrefix(topico, "sensor") && time.Since(lastPub) > 10 * time.Second{
                 fmt.Printf("[%s] (Broker) ALERTA: Tópico Removido por inatividade (+10s inativo)- %s\n", timeStamp(), topico);
                 
                 // Exclui tópico 
