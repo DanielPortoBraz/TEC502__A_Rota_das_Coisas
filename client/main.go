@@ -96,34 +96,60 @@ func terminal(conn net.Conn, topico *Topico, topicoChan chan Topico) error {
 		}
 		opcao := scanner.Text()
 
-		// ================== PUBLICAR ==================
+		// ================== PUBLICAR ATUADOR ==================
 		if opcao == "c" {
 
-			fmt.Print("Digite o ID do dispositivo: ")
+			fmt.Print("Digite o ID do dispositivo ou \"#\" para Visualizar Disponíveis: ");
 			if !scanner.Scan() {
 				return fmt.Errorf("entrada encerrada")
 			}
 			tipoId := scanner.Text()
 
-			fmt.Print("Digite o Comando (on/off): ")
-			if !scanner.Scan() {
-				return fmt.Errorf("entrada encerrada")
+			// Trata para o caso do usuário querer visualizar (assinar) os tópicos disponíveis de atuadores
+			if tipoId == "#" {
+				subTopico := *topico
+				subTopico.Acao = "sub"
+				subTopico.Tipo = "atuador"
+				subTopico.TipoId = "#"
+
+				stop := make(chan bool)
+
+				go assinarTopico(conn, &subTopico, topicoChan, stop);
+
+				for {
+					if !scanner.Scan() {
+						return fmt.Errorf("entrada encerrada")
+					}
+
+					if scanner.Text() == "p" {
+						stop <- true
+						subTopico.Acao = "unsub"
+						desassinarTopico(conn, &subTopico)
+						break
+					}
+				}
+			} else { // Trata o caso que o usuário irá enviar um comando para atuador (publicar)
+
+				fmt.Print("Digite o Comando (on/off): ")
+				if !scanner.Scan() {
+					return fmt.Errorf("entrada encerrada")
+				}
+
+				comando := "false"
+				if scanner.Text() == "on" {
+					comando = "true"
+				}
+
+				pubTopico := *topico
+				pubTopico.Acao = "pub"
+				pubTopico.Tipo = "atuador"
+				pubTopico.TipoId = tipoId
+				pubTopico.Comando = comando
+
+				go publicarTopico(conn, &pubTopico)
+
+				fmt.Println("Comando enviado.")
 			}
-
-			comando := "false"
-			if scanner.Text() == "on" {
-				comando = "true"
-			}
-
-			pubTopico := *topico
-			pubTopico.Acao = "pub"
-			pubTopico.Tipo = "atuador"
-			pubTopico.TipoId = tipoId
-			pubTopico.Comando = comando
-
-			go publicarTopico(conn, &pubTopico)
-
-			fmt.Println("Comando enviado.")
 		}
 
 		// ================== ASSINAR SENSOR ==================

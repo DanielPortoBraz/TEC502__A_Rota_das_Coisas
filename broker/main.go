@@ -114,26 +114,44 @@ func (broker *Broker) publicar(topico Topico){
 }
 
 // Assina tópico no Broker
-func (broker *Broker) assinar(topico Topico, conn net.Conn){
+func (broker *Broker) assinar(topico Topico, conn net.Conn) {
 	chave := fmt.Sprintf("%s/%s", topico.Tipo, topico.TipoId)
 
-	// Adiciona um assinante (conn) ao Tópico
-	broker.mu.Lock();
+	broker.mu.Lock()
+	defer broker.mu.Unlock()
 
-	// Verifica se o assinante irá assinar todos os tópicos de um determinado tipo (uso do WildCard "#")
-	if topico.TipoId != "#"{
+	// Assinatura normal (sem WildCard "#")
+	if topico.TipoId != "#" {
 		broker.assinantes[chave] = append(broker.assinantes[chave], conn);
-	} else {
+		return
+	}
 
-		for key := range broker.assinantes {
-			
-			// Assina todos os tópicos daquele tipo
-			if strings.HasPrefix(key, topico.Tipo+"/") {
-				broker.assinantes[key] = append(broker.assinantes[key], conn)
+	// Wildcard "#": envia todos os tópicos já existentes daquele tipo
+	prefixo := topico.Tipo + "/";
+
+	for key := range broker.assinantes {
+		if strings.HasPrefix(key, prefixo) {
+
+			partes := strings.Split(key, "/");
+			if len(partes) != 2 {
+				continue;
 			}
+
+			topicoAssinado := Topico{
+				Tipo:   partes[0],
+				TipoId: partes[1],
+				Valor: -1, // Flag para indicar que o tópico será apenas listado
+			}
+
+			data, err := json.Marshal(topicoAssinado)
+			if err != nil {
+				continue;
+			}
+
+			conn.Write(data);
+			conn.Write([]byte("\n"));
 		}
 	}
-	broker.mu.Unlock();
 }
 
 // Monitora tópicos visando eliminar aqueles via UDP que não estão atualizando há mais de 10 segundos

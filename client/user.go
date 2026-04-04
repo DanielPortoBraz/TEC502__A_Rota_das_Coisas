@@ -134,13 +134,21 @@ func assinarTopico(conn net.Conn, usuario *Topico, topicoChan chan Topico, stop 
 		case <-ticker.C:
 
 			if len(ultimos) == 0 {
+				fmt.Printf("[%s](Usuario): Nenhum tópico encontrado\n", timeStamp())			
 				continue;
 			}
 
 			for _, t := range ultimos {
-				fmt.Printf("[%s](Usuario): Topico Recebido - %s/%s/%s/%t\nValor: %.2f\n",
-				timeStamp(), t.Tipo, t.TipoId,
-				t.Comando, t.Estado, t.Valor);
+				
+				if t.Valor == -1 { // Se o Valor for -1, indica que o tópico está apenas sendo listado
+					fmt.Printf("[%s](Usuario): Topico Listado - %s/%s\n",
+					timeStamp(), t.Tipo, t.TipoId);	
+
+				}else { // Senão, o tópico está íntegro e é recebido
+					fmt.Printf("[%s](Usuario): Topico Recebido - %s/%s/\nEstado: %t\nValor: %.2f\n",
+					timeStamp(), t.Tipo, t.TipoId,
+					t.Estado, t.Valor);
+				}
 			}
 		}
 	}
