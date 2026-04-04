@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const PORTA = "172.16.201.5"
+
 // ============ Sensor =============
 /*
 
@@ -46,7 +48,7 @@ func timeStamp() string{
 func main() {
 
 	// Conexão por UDP
-    conn, err := net.Dial("udp", "localhost:9000");
+    conn, err := net.Dial("udp", fmt.Sprintf("%s:9000", PORTA));
 	if err != nil {
 		panic(err);
 	}
@@ -61,6 +63,6 @@ func main() {
 
 		enviarDado(conn, sensor);
 
-		time.Sleep(100 * time.Millisecond); // Envia leitura contínua a cada 5 segundos
+		time.Sleep(1000 * time.Millisecond); // Envia leitura contínua a cada 5 segundos
 	}
 }

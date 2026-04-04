@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"encoding/json"
 	"net"
+	"os"
 	"math/rand"
 )
 
@@ -12,8 +13,8 @@ func newSensor() *Topico{
 	return &Topico {
 		Acao : "pub",
 		Tipo : "sensor",
-		TipoId : fmt.Sprintf("%d", rand.Intn(100)),
-		Comando : "",
+		TipoId : os.Getenv("HOSTNAME"),
+		Comando : "-",
 		Valor : 0.0,
 		Estado : false,
 	}	
