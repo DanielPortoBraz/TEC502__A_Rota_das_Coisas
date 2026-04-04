@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// IP do Computador Servidor
+const IP_SERVER = "172.16.201.5"
+
 // ============ Atuador =============
 /*
 
@@ -66,7 +69,7 @@ func main() {
 	for {
 		fmt.Println("Tentando conectar...")
 
-		conn, err := net.Dial("tcp", "localhost:9000")
+		conn, err := net.Dial("tcp", fmt.Sprintf("%s:9000", IP_SERVER));
 		if err != nil {
 			fmt.Println("Erro ao conectar:", err)
 			time.Sleep(3 * time.Second)

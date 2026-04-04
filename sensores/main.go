@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// IP do Computador Servidor
+const IP_SERVER = "172.16.201.5"
+
 // ============ Sensor =============
 /*
 
@@ -46,7 +49,7 @@ func timeStamp() string{
 func main() {
 
 	// Conexão por UDP
-    conn, err := net.Dial("udp", "localhost:9000");
+    conn, err := net.Dial("udp", fmt.Sprintf("%s:9000", IP_SERVER));
 	if err != nil {
 		panic(err);
 	}

@@ -8,6 +8,9 @@ import (
 	"os"
 )
 
+// IP do Computador Servidor
+const IP_SERVER = "172.16.201.5"
+
 // ============= Usuários ==============
 
 /*
@@ -247,7 +250,7 @@ func main() {
 	for {
 		fmt.Println("Tentando conectar ao broker...")
 
-		conn, err := net.Dial("tcp", ":9000")
+		conn, err := net.Dial("tcp", fmt.Sprintf("%s:9000", IP_SERVER));
 		if err != nil {
 			fmt.Println("Erro:", err)
 			time.Sleep(3 * time.Second)
