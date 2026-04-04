@@ -49,6 +49,9 @@ type Broker struct {
 // Remove conexões TCP que falharam ou foram interrompidas
 func (broker *Broker) removerConn(conn net.Conn) {
 
+	broker.mu.Lock()
+	defer broker.mu.Unlock()
+
     // Percorre todos os tópicos 
     for topico, lista := range broker.assinantes {
         
@@ -117,17 +120,18 @@ func (broker *Broker) publicar(topico Topico){
 func (broker *Broker) assinar(topico Topico, conn net.Conn) {
 	chave := fmt.Sprintf("%s/%s", topico.Tipo, topico.TipoId)
 
-	broker.mu.Lock()
-	defer broker.mu.Unlock()
-
 	// Assinatura normal (sem WildCard "#")
+	broker.mu.Lock();
 	if topico.TipoId != "#" {
 		broker.assinantes[chave] = append(broker.assinantes[chave], conn);
+		broker.mu.Unlock();
 		return
 	}
 
-	// Wildcard "#": envia todos os tópicos já existentes daquele tipo
+	// Wildcard "#": coleta todos os tópicos já existentes daquele tipo
 	prefixo := topico.Tipo + "/";
+
+	var topicosEncontrados []Topico
 
 	for key := range broker.assinantes {
 		if strings.HasPrefix(key, prefixo) {
@@ -137,20 +141,24 @@ func (broker *Broker) assinar(topico Topico, conn net.Conn) {
 				continue;
 			}
 
-			topicoAssinado := Topico{
+			topicosEncontrados = append(topicosEncontrados, Topico{
 				Tipo:   partes[0],
 				TipoId: partes[1],
 				Valor: -1, // Flag para indicar que o tópico será apenas listado
-			}
-
-			data, err := json.Marshal(topicoAssinado)
-			if err != nil {
-				continue;
-			}
-
-			conn.Write(data);
-			conn.Write([]byte("\n"));
+			})
 		}
+	}
+	broker.mu.Unlock();
+
+	// I/O fora do lock
+	for _, t := range topicosEncontrados {
+		data, err := json.Marshal(t)
+		if err != nil {
+			continue;
+		}
+
+		conn.Write(data);
+		conn.Write([]byte("\n"));
 	}
 }
 
