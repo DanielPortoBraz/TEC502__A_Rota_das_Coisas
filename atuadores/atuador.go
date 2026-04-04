@@ -66,7 +66,7 @@ func assinarComando(atuador *Topico, conn net.Conn, lastPong *time.Time) {
 	var topico Topico;
 
 	for {
-		fmt.Println("Assinando")
+		fmt.Printf("[%s] (Atuador): ID- %s | Estado: %t\n", timeStamp(), atuador.TipoId, atuador.Estado);
 		data, err := reader.ReadBytes('\n');
 		if err != nil {
 			return;
@@ -87,7 +87,7 @@ func assinarComando(atuador *Topico, conn net.Conn, lastPong *time.Time) {
 			} else {
 				atuador.Estado = false;
 			}
-			fmt.Printf("[%s] (Atuador): Topico assinado - %s/%s\nComando: %s", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando);
+			fmt.Printf("[%s] (Atuador): Topico assinado - %s/%s\nComando: %s\n", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando);
 		}
 	}
 }
