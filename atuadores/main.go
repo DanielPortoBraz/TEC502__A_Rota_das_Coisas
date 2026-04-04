@@ -39,50 +39,26 @@ func timeStamp() string{
 		currentTime.Second()))
 }
 
-// Função que encapsula toda a lógica do atuador com assinatura contínua
-func runAtuador(conn net.Conn) error {
-	atuador := newAtuador()
-	lastPong := time.Now()
 
-	errChan := make(chan error, 2)
-
-	// Goroutine do heartbeat
-	go func() {
-		heartbeat(conn, &lastPong)
-		errChan <- fmt.Errorf("heartbeat morreu")
-	}()
-
-	// Goroutine principal (assinatura)
-	go func() {
-		assinarComando(atuador, conn, &lastPong)
-		errChan <- fmt.Errorf("leitura morreu")
-	}()
-
-	// Espera qualquer erro
-	return <-errChan
-}
-
-// Main - Roda atuador e faz tentativa de Reconexão a cada 3 segundos, caso o Broker caia
 func main() {
 
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:9000", PORTA));
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close();
+
+	fmt.Println("Atuador conectado ao broker");
+
+	atuador := newAtuador();
+	lastPong := time.Now();
+
+	go heartbeat(conn, &lastPong);
+
+	go assinarComando(atuador, conn, &lastPong);
+
 	for {
-		fmt.Println("Tentando conectar...")
-
-		conn, err := net.Dial("tcp", "localhost:9000")
-		if err != nil {
-			fmt.Println("Erro ao conectar:", err)
-			time.Sleep(3 * time.Second)
-			continue
-		}
-
-		fmt.Println("Conectado ao broker!")
-
-		err = runAtuador(conn)
-
-		fmt.Println("Conexão perdida:", err)
-
-		conn.Close()
-
-		time.Sleep(3 * time.Second)
+		fmt.Printf("[%s] (Atuador): ID- %s | Estado: %t\n", timeStamp(), atuador.TipoId, atuador.Estado);
+		time.Sleep(time.Second);
 	}
 }
