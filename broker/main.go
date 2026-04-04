@@ -90,12 +90,26 @@ func (broker *Broker) publicar(topico Topico){
 	// Recebe a lista de conns do Tópico a ser publicado
 	broker.mu.Lock();
 
-	if _, ok := broker.assinantes[chave]; !ok {
-		broker.assinantes[chave] = []net.Conn{} // Cria uma lista de conns
+	// Verifica todos os tópicos
+	_, existe := broker.assinantes[chave]
+
+	// Garante que não é usuário para evitar criar tópico fantasma
+	if topico.Comando == "" {
+
+		if !existe {
+			broker.assinantes[chave] = []net.Conn{} // Cria uma lista de conns
+		}
+		// Somente sensores e atuadores mantêm o tópico ativo
+		broker.ultimaAtividade[chave] = time.Now()
+	}
+
+	// Se não existe e é usuário, cancela publicação
+	if !existe && topico.Comando != "" {
+		broker.mu.Unlock()
+		return
 	}
 	
 	conns := broker.assinantes[chave];
-	broker.ultimaAtividade[chave] = time.Now(); // Útil para UDP (sensores) somente
 	broker.mu.Unlock();
 
 	// Serializa o topico 
@@ -162,7 +176,7 @@ func (broker *Broker) assinar(topico Topico, conn net.Conn) {
 	}
 }
 
-// Monitora tópicos visando eliminar aqueles via UDP que não estão atualizando há mais de 10 segundos
+// Monitora tópicos visando eliminar que não estão atualizando há mais de 10 segundos
 func (broker *Broker) monitorarTopicos() {
     for {
         time.Sleep(5 * time.Second)

@@ -13,7 +13,7 @@ func newSensor() *Topico{
 		Acao : "pub",
 		Tipo : "sensor",
 		TipoId : fmt.Sprintf("%d", rand.Intn(100)),
-		Comando : "-",
+		Comando : "",
 		Valor : 0.0,
 		Estado : false,
 	}	
