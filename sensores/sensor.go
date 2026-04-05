@@ -36,7 +36,7 @@ func enviarDado(conn net.Conn, sensor *Topico) error {
 
 	_, err = conn.Write(data)
 
-	fmt.Printf("[%s] (Sensor):\nID: %s\nValor: %.2f\n", timeStamp(), sensor.TipoId, sensor.Valor);
+	//fmt.Printf("[%s] (Sensor):\nID: %s\nValor: %.2f\n", timeStamp(), sensor.TipoId, sensor.Valor);
 
 	return err
 }

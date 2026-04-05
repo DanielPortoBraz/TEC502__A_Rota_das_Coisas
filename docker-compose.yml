@@ -13,15 +13,15 @@ services:
 
   sensor:
     build: ./sensores
-    depends_on:
-      - broker
+    environment:
+      - BROKER_HOST=0.0.0.0
     networks:
       - pubsub
 
   atuador:
     build: ./atuadores
-    depends_on:
-      - broker
+    environment:
+      - BROKER_HOST=0.0.0.0
     networks:
       - pubsub
 
@@ -29,8 +29,8 @@ services:
     build: ./client
     stdin_open: true
     tty: true
-    depends_on:
-      - broker
+    environment:
+      - BROKER_HOST=0.0.0.0
     networks:
       - pubsub
 

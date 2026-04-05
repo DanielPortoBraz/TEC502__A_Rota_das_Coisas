@@ -27,7 +27,7 @@ func handleConnectionUDP (conn *net.UDPConn, broker *Broker) {
 		// Publica Tópico (Sensor) 
 		broker.publicar(topico);
 		
-		fmt.Printf("[%s] (Broker): Publicação - %s/%s/%s\nValor: %.2f\n", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando, topico.Valor);
+		//fmt.Printf("[%s] (Broker): Publicação - %s/%s/%s\nValor: %.2f\n", timeStamp(), topico.Tipo, topico.TipoId, topico.Comando, topico.Valor);
 
 	}
 }

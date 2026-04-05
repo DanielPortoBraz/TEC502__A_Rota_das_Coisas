@@ -8,8 +8,14 @@ import (
 	"os"
 )
 
-// IP do Computador Servidor
-const IP_SERVER = "172.16.201.5"
+// Obtém o IP da máquina que roda o Broker Servidor
+func getBrokerHost() string {
+	host := os.Getenv("BROKER_HOST")
+	if host == "" {
+		host = "broker" // fallback (uso local com docker)
+	}
+	return host
+}
 
 // ============= Usuários ==============
 
@@ -250,7 +256,7 @@ func main() {
 	for {
 		fmt.Println("Tentando conectar ao broker...")
 
-		conn, err := net.Dial("tcp", fmt.Sprintf("%s:9000", IP_SERVER));
+		conn, err := net.Dial("tcp", fmt.Sprintf("%s:9000", getBrokerHost()));
 		if err != nil {
 			fmt.Println("Erro:", err)
 			time.Sleep(3 * time.Second)
