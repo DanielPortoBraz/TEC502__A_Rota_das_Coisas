@@ -1,13 +1,38 @@
 version: "3.9"
 
 services:
+
   broker:
     build: ./broker
     container_name: broker
     ports:
-      - "9000:9000"
+      - "9000:9000/tcp"
+      - "9000:9000/udp"
+    networks:
+      - pubsub
 
-  device:
-    build: ./device
-    depends_on:
-      - broker
+  sensor:
+    build: ./sensores
+    environment:
+      - BROKER_HOST=0.0.0.0
+    networks:
+      - pubsub
+
+  atuador:
+    build: ./atuadores
+    environment:
+      - BROKER_HOST=0.0.0.0
+    networks:
+      - pubsub
+
+  client:
+    build: ./client
+    stdin_open: true
+    tty: true
+    environment:
+      - BROKER_HOST=0.0.0.0
+    networks:
+      - pubsub
+
+networks:
+  pubsub:

@@ -4,7 +4,17 @@ import (
 	"fmt"
 	"net"
 	"time"
+	"os"
 )
+
+// Obtém o IP da máquina que roda o Broker Servidor
+func getBrokerHost() string {
+	host := os.Getenv("BROKER_HOST")
+	if host == "" {
+		host = "broker" // fallback (uso local com docker)
+	}
+	return host
+}
 
 // ============ Sensor =============
 /*
@@ -46,7 +56,7 @@ func timeStamp() string{
 func main() {
 
 	// Conexão por UDP
-    conn, err := net.Dial("udp", "localhost:9000");
+    conn, err := net.Dial("udp", fmt.Sprintf("%s:9000", getBrokerHost()));
 	if err != nil {
 		panic(err);
 	}
@@ -61,6 +71,6 @@ func main() {
 
 		enviarDado(conn, sensor);
 
-		time.Sleep(100 * time.Millisecond); // Envia leitura contínua a cada 5 segundos
+		time.Sleep(1000 * time.Millisecond); // Envia leitura contínua a cada 5 segundos
 	}
 }

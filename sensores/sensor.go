@@ -13,7 +13,7 @@ func newSensor() *Topico{
 		Acao : "pub",
 		Tipo : "sensor",
 		TipoId : fmt.Sprintf("%d", rand.Intn(100)),
-		Comando : "-",
+		Comando : "",
 		Valor : 0.0,
 		Estado : false,
 	}	
@@ -36,7 +36,7 @@ func enviarDado(conn net.Conn, sensor *Topico) error {
 
 	_, err = conn.Write(data)
 
-	fmt.Printf("[%s] (Sensor):\nID: %s\nValor: %.2f\n", timeStamp(), sensor.TipoId, sensor.Valor);
+	//fmt.Printf("[%s] (Sensor):\nID: %s\nValor: %.2f\n", timeStamp(), sensor.TipoId, sensor.Valor);
 
 	return err
 }
