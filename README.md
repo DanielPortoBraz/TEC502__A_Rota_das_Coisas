@@ -15,23 +15,19 @@ A solução resolve problemas clássicos de **alto acoplamento** em arquiteturas
 │   ├── main.go
 │   ├── tcp_server.go
 │   ├── udp_server.go
-│   ├── Dockerfile
-│   └── ...
+│   └── Dockerfile
 ├── sensor/
 │   ├── main.go
 │   ├── sensor.go
-│   ├── Dockerfile
-│   └── ...
+│   └── Dockerfile
 ├── atuador/
 │   ├── main.go
 │   ├── atuador.go
-│   ├── Dockerfile
-│   └── ...
+│   └── Dockerfile
 ├── client/
 │   ├── main.go
 │   ├── user.go
-│   ├── Dockerfile
-│   └── ...
+│   └── Dockerfile
 ├── docker-compose.yml
 └── README.md
 ```
@@ -51,7 +47,7 @@ A solução resolve problemas clássicos de **alto acoplamento** em arquiteturas
 
 ## 🏗️ Arquitetura do Sistema
 
-O sistema segue uma **topologia em estrela**, em que conforme a imagem abaixo, têm-se as seguintes entidades:
+O sistema segue uma **topologia em estrela**, em que conforme o diagrama abaixo, têm-se as seguintes entidades:
 
 
 <img width="600" height="560" alt="PBL1_GO - Arquitetura Geral" src="https://github.com/user-attachments/assets/4b598279-8926-4555-8a2a-0473a790a2dd" />
@@ -224,8 +220,9 @@ docker compose up --build
 
 ---
 
-## 📊 Resultados
+## 📊 Resultados de Testes
 
+> Os testes foram feitos com sensores lendo a cada 100ms
 - **301 containers simultâneos**
 - CPU: **2% ~ 5% (pico ~7%)**
 - Memória: **~13.48 MB**
