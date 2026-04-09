@@ -7,6 +7,35 @@ Este projeto implementa um **middleware de integração para redes IoT** baseado
 A solução resolve problemas clássicos de **alto acoplamento** em arquiteturas ponto-a-ponto, utilizando um **Broker central** responsável por intermediar a comunicação entre sensores, atuadores e usuários.
 
 ---
+## Estrutura do Projeto
+
+```bash
+
+├── broker/
+│   ├── main.go
+│   ├── tcp_server.go
+│   ├── udp_server.go
+│   ├── Dockerfile
+│   └── ...
+├── sensor/
+│   ├── main.go
+│   ├── sensor.go
+│   ├── Dockerfile
+│   └── ...
+├── atuador/
+│   ├── main.go
+│   ├── atuador.go
+│   ├── Dockerfile
+│   └── ...
+├── client/
+│   ├── main.go
+│   ├── user.go
+│   ├── Dockerfile
+│   └── ...
+├── docker-compose.yml
+└── README.md
+```
+---
 
 ## 🧠 Conceitos-Chave
 
@@ -116,22 +145,54 @@ Menu interativo:
 [t] Teste de concorrência
 ```
 
-### Exemplos
+### Exemplo de uso
+```bash
+----- Painel de Controle -----
+[c] Publicar comando
+[s] Assinar sensor
+[t] Teste de Concorrência p/ Atuadores
+Digite o comando: c
+Digite o ID do dispositivo ou "#" para Visualizar Disponíveis: #
 
-**Publicar comando**
-```
-ID: 15
-Comando: on
-```
+[9-4-2026 17:57:8](Usuario): Topico Listado - atuador/57d35f72496f
+[9-4-2026 17:57:8](Usuario): Topico Listado - atuador/99073dd03805
+[9-4-2026 17:57:9](Usuario): Topico Listado - atuador/57d35f72496f
+[9-4-2026 17:57:9](Usuario): Topico Listado - atuador/99073dd03805
 
-**Assinar sensor**
-```
-ID: 10
-```
+p
+(Usuario) Encerrando assinatura...
 
-**Wildcard**
-```
-ID: #
+----- Painel de Controle -----
+[c] Publicar comando
+[s] Assinar sensor
+[t] Teste de Concorrência p/ Atuadores
+Digite o comando: s
+Digite o ID do dispositivo: cc38a6224bcc
+
+[9-4-2026 17:57:34](Usuario): Topico Recebido - sensor/cc38a6224bcc/
+Estado: false
+Valor: 71.92
+
+[9-4-2026 17:57:35](Usuario): Topico Recebido - sensor/cc38a6224bcc/
+Estado: false
+Valor: 2.32
+
+[9-4-2026 17:57:36](Usuario): Topico Recebido - sensor/cc38a6224bcc/
+Estado: false
+Valor: 99.13
+
+p
+(Usuario) Encerrando assinatura...
+
+----- Painel de Controle -----
+[c] Publicar comando
+[s] Assinar sensor
+[t] Teste de Concorrência p/ Atuadores
+Digite o comando: c
+Digite o ID do dispositivo ou "#" para Visualizar Disponíveis: 99073dd03805
+Digite o Comando (on/off): on
+
+Comando enviado.
 ```
 
 ---
