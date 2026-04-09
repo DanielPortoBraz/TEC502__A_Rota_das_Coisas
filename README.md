@@ -195,7 +195,7 @@ Comando enviado.
 
 ## 🐳 Execução com Docker
 
-### 1. Configurar IP do Broker
+### 1. Configurar IP do Broker em `docker-compose.yml`
 
 Definir variável de ambiente:
 
