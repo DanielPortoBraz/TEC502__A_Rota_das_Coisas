@@ -6,7 +6,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"time"
-	"math/rand"
+	"os"
 )
 
 
@@ -14,7 +14,7 @@ func newAtuador() *Topico {
 	return &Topico{
 		Acao : "sub",
 		Tipo : "atuador",
-		TipoId : fmt.Sprintf("%d", rand.Intn(100)),
+		TipoId : os.Getenv("HOSTNAME"),
 		Comando : "",
 		Valor : 0.0,
 		Estado: false,

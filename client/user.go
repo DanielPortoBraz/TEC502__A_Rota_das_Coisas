@@ -5,7 +5,7 @@ import (
 	"bufio"
 	"net"
 	"encoding/json"
-	"math/rand"
+	"os"
 	"time"
 )
 
@@ -13,7 +13,7 @@ func newUsuario() *Topico {
 	return &Topico{
 		Acao : "sub", // Definido inicialmente como sub
 		Tipo : "usuario",
-		TipoId : fmt.Sprintf("%d", rand.Intn(100)),
+		TipoId : os.Getenv("HOSTNAME"),
 		Comando : "",
 		Valor : 0.0,
 		Estado : false,
