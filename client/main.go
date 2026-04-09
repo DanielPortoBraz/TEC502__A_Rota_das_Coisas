@@ -12,29 +12,11 @@ import (
 func getBrokerHost() string {
 	host := os.Getenv("BROKER_HOST")
 	if host == "" {
-		host = "broker" // fallback (uso local com docker)
+		host = "broker"
 	}
 	return host
 }
 
-// ============= Usuários ==============
-
-/*
-
-1. Conecta ao Broker via TCP
-2. Cria Usuário: Fornece usuarioID ao Broker
-3. Executa Terminal
-  L> Aguarda usuário definir qual tópico irá assinar - Deve informar no modelo:
-	"tipo/tipoId/comando"
-4. Envia comando, ou recebe valor/estado de sensor/atuador
-
-*/
-
-/*
-Padrão de Tópico: tipo/tipoId/comando. ("Valor" não será utilizado dentro do tópico, mas como dado fornecido por sensores. O mesmo vale para "Estado" para o caso de atuadores)
-Exemplo: sensor/sensor_1/-
-Exemplo: atuador/atuador_1/off
-*/
 type Topico struct {
 	Acao string `json:"acao"`
 	Tipo string `json:"tipo"`
@@ -44,7 +26,6 @@ type Topico struct {
 	Estado bool `json:"estado"`
 }
 
-// Retorna timeStamp
 func timeStamp() string{
 	currentTime := time.Now()
 
@@ -57,47 +38,50 @@ func timeStamp() string{
 		currentTime.Second()))
 }
 
-func runUsuario(conn net.Conn) error {
+func runUsuario(conn net.Conn, c int) error {
 	topico := newUsuario()
 
 	pongChan := make(chan struct{}, 1)
 	topicoChan := make(chan Topico, 100)
+	errChan := make(chan error, 4)
+	done := make(chan struct{})
 
-	errChan := make(chan error, 3)
-
-	// HEARTBEAT
 	go func() {
-		heartbeat(conn)
+		heartbeat(conn, done)
 		errChan <- fmt.Errorf("heartbeat morreu")
 	}()
 
-	// DISPATCHER
 	go func() {
-		dispatcher(conn, pongChan, topicoChan)
+		dispatcher(conn, pongChan, topicoChan, done)
 		errChan <- fmt.Errorf("dispatcher morreu")
 	}()
 
-	// MONITOR
 	go func() {
-		monitorConexao(pongChan)
+		monitorConexao(pongChan, done)
 		errChan <- fmt.Errorf("timeout de conexão")
 	}()
 
-	// TERMINAL (loop principal do usuário)
 	go func() {
-		errChan <- terminal(conn, topico, topicoChan)
+		errChan <- terminal(conn, topico, topicoChan, c, done)
 	}()
 
-	// Espera qualquer erro
-	return <-errChan
+	err := <-errChan
+	close(done)
+	return err
 }
 
-func terminal(conn net.Conn, topico *Topico, topicoChan chan Topico) error {
+func terminal(conn net.Conn, topico *Topico, topicoChan chan Topico, c int, done chan struct{}) error {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Println("=== Terminal Pub/Sub Iniciado ===")
 
 	for {
+		select {
+		case <-done:
+			return fmt.Errorf("finalizado")
+		default:
+		}
+
 		fmt.Print("\n----- Painel de Controle -----\n[c] Publicar comando\n[s] Assinar sensor\n[t] Teste de Concorrência p/ Atuadores\nDigite o comando: ")
 
 		if !scanner.Scan() {
@@ -105,16 +89,14 @@ func terminal(conn net.Conn, topico *Topico, topicoChan chan Topico) error {
 		}
 		opcao := scanner.Text()
 
-		// ================== PUBLICAR ATUADOR ==================
 		if opcao == "c" {
 
-			fmt.Print("Digite o ID do dispositivo ou \"#\" para Visualizar Disponíveis: ");
+			fmt.Print("Digite o ID do dispositivo ou \"#\" para Visualizar Disponíveis: ")
 			if !scanner.Scan() {
 				return fmt.Errorf("entrada encerrada")
 			}
 			tipoId := scanner.Text()
 
-			// Trata para o caso do usuário querer visualizar (assinar) os tópicos disponíveis de atuadores
 			if tipoId == "#" {
 				subTopico := *topico
 				subTopico.Acao = "sub"
@@ -123,21 +105,32 @@ func terminal(conn net.Conn, topico *Topico, topicoChan chan Topico) error {
 
 				stop := make(chan bool)
 
-				go assinarTopico(conn, &subTopico, topicoChan, stop);
-
-				for {
-					if !scanner.Scan() {
-						return fmt.Errorf("entrada encerrada")
+				go func() {
+					for {
+						select {
+						case <-done:
+							return
+						default:
+							if !scanner.Scan() {
+								return
+							}
+							if scanner.Text() == "p" {
+								select {
+									case stop <- true:
+									case <-done:
+								}
+								return
+							}
+						}
 					}
+				}()
 
-					if scanner.Text() == "p" {
-						stop <- true
-						subTopico.Acao = "unsub"
-						desassinarTopico(conn, &subTopico)
-						break
-					}
-				}
-			} else { // Trata o caso que o usuário irá enviar um comando para atuador (publicar)
+				assinarTopico(conn, &subTopico, topicoChan, stop, done)
+
+				subTopico.Acao = "unsub"
+				desassinarTopico(conn, &subTopico)
+
+			} else {
 
 				fmt.Print("Digite o Comando (on/off): ")
 				if !scanner.Scan() {
@@ -161,7 +154,6 @@ func terminal(conn net.Conn, topico *Topico, topicoChan chan Topico) error {
 			}
 		}
 
-		// ================== ASSINAR SENSOR ==================
 		if opcao == "s" {
 			fmt.Print("Digite o ID do dispositivo: ")
 
@@ -177,25 +169,32 @@ func terminal(conn net.Conn, topico *Topico, topicoChan chan Topico) error {
 
 			stop := make(chan bool)
 
-			go assinarTopico(conn, &subTopico, topicoChan, stop)
-
-			fmt.Println("Assinando... (digite 'p' para parar)")
-
-			for {
-				if !scanner.Scan() {
-					return fmt.Errorf("entrada encerrada")
+			go func() {
+				for {
+					select {
+					case <-done:
+						return
+					default:
+						if !scanner.Scan() {
+							return
+						}
+						if scanner.Text() == "p" {
+							select {
+								case stop <- true:
+								case <-done:
+							}
+							return
+						}
+					}
 				}
+			}()
 
-				if scanner.Text() == "p" {
-					stop <- true
-					subTopico.Acao = "unsub"
-					desassinarTopico(conn, &subTopico)
-					break
-				}
-			}
+			assinarTopico(conn, &subTopico, topicoChan, stop, done)
+
+			subTopico.Acao = "unsub"
+			desassinarTopico(conn, &subTopico)
 		}
 
-		// ================== TESTE ==================
 		if opcao == "t" {
 
 			fmt.Print("Digite o ID do dispositivo: ")
@@ -214,9 +213,9 @@ func terminal(conn net.Conn, topico *Topico, topicoChan chan Topico) error {
 				for {
 					select {
 					case <-stop:
-						fmt.Println("Parando publicação")
 						return
-
+					case <-done:
+						return
 					default:
 						pubTopico := *topico
 						pubTopico.Acao = "pub"
@@ -253,24 +252,27 @@ func terminal(conn net.Conn, topico *Topico, topicoChan chan Topico) error {
 }
 
 func main() {
+
+	c := 1
+
 	for {
 		fmt.Println("Tentando conectar ao broker...")
 
-		conn, err := net.Dial("tcp", fmt.Sprintf("%s:9000", getBrokerHost()));
+		conn, err := net.Dial("tcp", fmt.Sprintf("%s:9000", getBrokerHost()))
 		if err != nil {
 			fmt.Println("Erro:", err)
 			time.Sleep(3 * time.Second)
+			c++
 			continue
 		}
 
 		fmt.Println("Conectado!")
 
-		err = runUsuario(conn)
+		err = runUsuario(conn, c)
 
 		fmt.Println("Conexão perdida:", err)
 
 		conn.Close()
-
 		time.Sleep(3 * time.Second)
 	}
 }

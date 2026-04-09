@@ -31,6 +31,7 @@ func heartbeat(conn net.Conn, lastPong *time.Time) {
 		if err != nil {
 			return // conexão morreu
 		}
+		conn.Write([]byte("\n"));
 
 		time.Sleep(5 * time.Second)
 

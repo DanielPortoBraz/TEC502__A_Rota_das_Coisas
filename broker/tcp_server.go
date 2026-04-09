@@ -24,13 +24,15 @@ func handleConnectionTCP(conn net.Conn, broker *Broker) {
 		// Timeout de 10 segundos
 		conn.SetReadDeadline(time.Now().Add(10 * time.Second));
 
-		data, err := reader.ReadBytes('}') // ReadBytes é bloqueante
+		data, err := reader.ReadBytes('\n') // ReadBytes é bloqueante
 		if err != nil {
 			return
 		}
 
 		// Desserialização do JSON
-		json.Unmarshal(data, &topico)
+		if err := json.Unmarshal(data, &topico); err != nil {
+			continue;
+		}
 
 		// Verifica se é um tópico de publicação ou assinatura
 		switch topico.Acao {

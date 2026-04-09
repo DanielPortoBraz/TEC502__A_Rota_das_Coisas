@@ -71,6 +71,6 @@ func main() {
 
 		enviarDado(conn, sensor);
 
-		time.Sleep(1* time.Millisecond); // Envia leitura contínua a cada milissegundo
+		time.Sleep(1 * time.Millisecond); // Envia leitura contínua a cada milissegundo
 	}
 }

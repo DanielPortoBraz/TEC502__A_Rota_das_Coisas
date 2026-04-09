@@ -7,11 +7,16 @@ import (
 	"encoding/json"
 	"os"
 	"time"
+	"bytes"
+	"sync"
 )
 
+var writeMu sync.Mutex
+
+// Cria struct de novo usuário (tópico)
 func newUsuario() *Topico {
 	return &Topico{
-		Acao : "sub", // Definido inicialmente como sub
+		Acao : "sub",
 		Tipo : "usuario",
 		TipoId : os.Getenv("HOSTNAME"),
 		Comando : "",
@@ -20,34 +25,45 @@ func newUsuario() *Topico {
 	}
 }
 
-// Heartbeat para indicar que a conexão está viva
-func heartbeat(conn net.Conn) {
+// Heartbeat para manter conexão com broker utilizando "ping-pong"
+func heartbeat(conn net.Conn, done chan struct{}) {
 	for {
-		ping_Top := Topico{Acao : "ping"};
-		data, _ := json.Marshal(ping_Top);
-		
-		_, err := conn.Write(data);
-		if err != nil {
-			return // conexão morreu
-		}
+		select {
+		case <-done:
+			return
+		default:
+			ping_Top := Topico{Acao : "ping"}
+			data, _ := json.Marshal(ping_Top)
 
-		conn.Write([]byte("\n"));
-		time.Sleep(5 * time.Second);
+			writeMu.Lock()
+			_, err := conn.Write(data)
+			if err != nil {
+				writeMu.Unlock()
+				return
+			}
+			conn.Write([]byte("\n"))
+			writeMu.Unlock()
+
+			time.Sleep(5 * time.Second)
+		}
 	}
 }
 
-// Monitora mensagens "pong" para indicar conexão ativa do Broker
-func monitorConexao(pongChan chan struct{}) {
-	timeout := 10 * time.Second; // A cada 10 segundos
+// Montiora a conexão, caso o "pong" do broker não seja retornado
+func monitorConexao(pongChan chan struct{}, done chan struct{}) {
+	timeout := 10 * time.Second
 	timer := time.NewTimer(timeout)
 
 	for {
 		select {
+		case <-done:
+			return
+
 		case <-pongChan:
 			if !timer.Stop() {
 				<-timer.C
 			}
-			timer.Reset(timeout) // Reinicia o cronômetro sempre que o pong chega
+			timer.Reset(timeout)
 
 		case <-timer.C:
 			fmt.Printf("[%s] (Usuario) Broker desconectou por timeout!\n", timeStamp())
@@ -56,98 +72,126 @@ func monitorConexao(pongChan chan struct{}) {
 	}
 }
 
-// Recebe o pacote enviado pelo Broker e identifica se é um heartbeat ("pong") ou tópico a ser assinado
-func dispatcher(conn net.Conn, pongChan chan struct{}, topicoChan chan Topico) {
+// Dispatcher que distribui as mensagens recebidas do broker em: pongs e tópicos
+func dispatcher(conn net.Conn, pongChan chan struct{}, topicoChan chan Topico, done chan struct{}) {
 	reader := bufio.NewReader(conn)
 
 	for {
-		data, err := reader.ReadBytes('\n')
-		if err != nil {
-			fmt.Printf("[%s](Usuario) Broker Desconectou\n", timeStamp());
-			close(pongChan)
-			close(topicoChan)
+		select {
+		case <-done:
 			return
-		}
+		default:
+			data, err := reader.ReadBytes('\n')
+			if err != nil { // Verifica erro de desconexão
+				fmt.Printf("[%s](Usuario) Broker Desconectou\n", timeStamp())
+				return
+			}
 
-		var topico Topico
-		if err := json.Unmarshal(data, &topico); err != nil {
-			continue
-		}
+			data = bytes.TrimSpace(data)
+			if len(data) == 0 {
+				continue
+			}
 
-		// Roteamento
-		if topico.Acao == "pong" {
-			pongChan <- struct{}{};
-		} else {
-			topicoChan <- topico;
+			var topico Topico
+			if err := json.Unmarshal(data, &topico); err != nil {
+				continue
+			}
+
+			if topico.Acao == "pong" {
+				select {
+				case pongChan <- struct{}{}:
+				default:
+				}
+				continue
+			}
+
+			if topico.Tipo == "" || topico.TipoId == "" {
+				continue
+			}
+
+			select {
+			case topicoChan <- topico:
+			case <-done:
+				return
+			}
 		}
 	}
 }
-
-
 
 func publicarTopico(conn net.Conn, usuario *Topico) {
+	usuario.Acao = "pub"
 
-	usuario.Acao = "pub";
-
-	data, err := json.Marshal(usuario);
+	data, err := json.Marshal(usuario)
 	if err != nil {
-		fmt.Println("(Usuario) Erro ao enviar comando");
+		return
 	}
 
+	writeMu.Lock()
 	conn.Write(data)
 	conn.Write([]byte("\n"))
+	writeMu.Unlock()
 }
 
-func assinarTopico(conn net.Conn, usuario *Topico, topicoChan chan Topico, stop chan bool) {
+// Assina tópico: primeiro envia tópico a ser assinado e então aguarda continuamente leituras daquele tópico
+func assinarTopico(conn net.Conn, usuario *Topico, topicoChan chan Topico, stop chan bool, done chan struct{}) {
+
+	// Esvazia buffer antigo
+	for len(topicoChan) > 0 {
+		<-topicoChan
+	}
 
 	usuario.Acao = "sub"
 
 	data, err := json.Marshal(usuario)
 	if err != nil {
-		fmt.Println("(Usuario) Erro ao enviar comando")
 		return
 	}
 
+	writeMu.Lock()
 	conn.Write(data)
 	conn.Write([]byte("\n"))
+	writeMu.Unlock()
 
-	// Guarda último valor por tópico
+	// Buffer para manter os dados mais recentes em exibição
 	ultimos := make(map[string]Topico)
 
-	// Garante tratamento concorrente de leitura exibida no terminal a cada 1 s
-	ticker := time.NewTicker(time.Second);
-	defer ticker.Stop();
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop() // Ticker, utilizado para atualizar terminal a cada 1s 
 
 	for {
 		select {
 
+		case <-done:
+			return;
+
 		case <-stop:
-			fmt.Println("(Usuario) Encerrando assinatura...");
+			fmt.Println("(Usuario) Encerrando assinatura...")
 			return
 
-		// Recebe dados continuamente (não bloqueia fluxo)
-		case topico := <-topicoChan:
-			chave := fmt.Sprintf("%s/%s", topico.Tipo, topico.TipoId);
-			ultimos[chave] = topico;
+		case topico, ok := <-topicoChan:
+			if !ok {
+				return
+			}
+			chave := fmt.Sprintf("%s/%s", topico.Tipo, topico.TipoId)
+			ultimos[chave] = topico
 
-		// Atualiza tela a cada 1 segundo
 		case <-ticker.C:
 
 			if len(ultimos) == 0 {
-				fmt.Printf("[%s](Usuario): Nenhum tópico encontrado\n", timeStamp())			
-				continue;
+				fmt.Printf("[%s](Usuario): Nenhum tópico encontrado\n", timeStamp())
+				continue
 			}
 
 			for _, t := range ultimos {
-				
-				if t.Valor == -1 { // Se o Valor for -1, indica que o tópico está apenas sendo listado
-					fmt.Printf("[%s](Usuario): Topico Listado - %s/%s\n",
-					timeStamp(), t.Tipo, t.TipoId);	
 
-				}else { // Senão, o tópico está íntegro e é recebido
+				if t.Valor == -1 {
+					fmt.Printf("[%s](Usuario): Topico Listado - %s/%s\n",
+						timeStamp(), t.Tipo, t.TipoId)
+
+				} else {
 					fmt.Printf("[%s](Usuario): Topico Recebido - %s/%s/\nEstado: %t\nValor: %.2f\n",
-					timeStamp(), t.Tipo, t.TipoId,
-					t.Estado, t.Valor);
+						timeStamp(), t.Tipo, t.TipoId,
+						t.Estado, t.Valor)
 				}
 			}
 		}
@@ -158,6 +202,9 @@ func desassinarTopico(conn net.Conn, usuario *Topico) {
 	usuario.Acao = "unsub"
 
 	data, _ := json.Marshal(usuario)
+
+	writeMu.Lock()
 	conn.Write(data)
 	conn.Write([]byte("\n"))
+	writeMu.Unlock()
 }
